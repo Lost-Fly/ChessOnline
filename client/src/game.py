@@ -2,14 +2,13 @@ import pygame
 import sys
 from pygame.locals import *
 
-
 BOARD_SIZE = 8
 CELL_SIZE = 80
 WINDOW_SIZE = (BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE)
 
-
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
+
 
 class ChessGame:
     def __init__(self, player_color):
@@ -21,8 +20,15 @@ class ChessGame:
         self.selected_piece = None
         self.game_over = False
         self.player_color = player_color
+        self.piece_images = {
+            0: "assets/black_pawn.png", 1: "assets/black_rook.png", 2: "assets/black_knight.png",
+            3: "assets/black_bishop.png", 4: "assets/black_queen.png", 5: "assets/black_king.png",
+            6: "assets/white_pawn.png", 7: "assets/white_rook.png", 8: "assets/white_knight.png",
+            9: "assets/white_bishop.png", 10: "assets/white_queen.png", 11: "assets/white_king.png"
+        }
 
-    def create_board(self):
+    @classmethod
+    def create_board(cls):
         board = [[None for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
         # Инициализируем шахматные фигуры на доске
         # Пусть 0 - черная пешка, 1 - черная ладья, 2 - черный конь,
@@ -54,19 +60,15 @@ class ChessGame:
                 pygame.draw.rect(self.screen, color, (col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE))
 
     def draw_pieces(self):
-        piece_images = {
-            0: "assets/black_pawn.png", 1: "assets/black_rook.png", 2: "assets/black_knight.png",
-            3: "assets/black_bishop.png", 4: "assets/black_queen.png", 5: "assets/black_king.png",
-            6: "assets/white_pawn.png", 7: "assets/white_rook.png", 8: "assets/white_knight.png",
-            9: "assets/white_bishop.png", 10: "assets/white_queen.png", 11: "assets/white_king.png"
-        }
+
         for row in range(BOARD_SIZE):
             for col in range(BOARD_SIZE):
                 piece = self.board[row][col]
                 if piece is not None:
-                    image = pygame.image.load(piece_images[piece])
+                    image = pygame.image.load(self.piece_images[piece])
+                    image_width, image_height = image.get_size()
+                    image = pygame.transform.scale(image, (image_width * 4, image_height * 4))
                     self.screen.blit(image, (col * CELL_SIZE, row * CELL_SIZE))
-
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -80,28 +82,31 @@ class ChessGame:
 
     def handle_click(self, row, col):
         if self.selected_piece is None:
-            # Если нажата пустая клетка или фигура не вашего цвета, ничего не делаем
-            # piece = self.board[row][col]
-            # if piece is None or (piece < 6 and self.player_color == "white") or (piece >= 6 and self.player_color == "black"):
-            #     return
-            # self.selected_piece = (row, col)
+            # TODO
+            self.selected_piece = (row, col)
             pass
         else:
+            # TODO
             # Если уже выбрана фигура, попробуем сделать ход
             move = self.board[row][col]
-            if move is not None and ((move < 6 and self.player_color == "white") or (move >= 6 and self.player_color == "black")):
-                # Если выбрана фигура того же цвета, сбросим выбор
+            if move is not None and (
+                    (move < 6 and self.player_color == "white") or (move >= 6 and self.player_color == "black")):
+                # Если выбрана фигура на нашего цвета
                 self.selected_piece = None
             else:
                 # Выполним ход
                 self.make_move(self.selected_piece, (row, col))
                 self.selected_piece = None
 
-
     def make_move(self, start_pos, end_pos):
+
         row_start, col_start = start_pos
         row_end, col_end = end_pos
 
+        piece = self.board[row_start][col_start]
+        if piece is not None:
+            self.board[row_start][col_start] = None
+            self.board[row_end][col_end] = piece
 
     def run(self):
         while not self.game_over:
@@ -112,7 +117,8 @@ class ChessGame:
             pygame.display.flip()
             self.clock.tick(30)
 
+
 if __name__ == "__main__":
-    player_color = input("Enter your color (white or black): ").lower()
-    game = ChessGame(player_color)
+    begin_player_color = input("Enter your color (white or black): ").lower()
+    game = ChessGame(begin_player_color)
     game.run()
