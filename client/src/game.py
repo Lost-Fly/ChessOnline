@@ -19,8 +19,8 @@ def get_cell_size(screen_width, screen_height):
 
 pygame.display.init()
 screen_width, screen_height = pygame.display.Info().current_w, pygame.display.Info().current_h
-CELL_SIZE = get_cell_size(screen_width - 80, screen_height - 80)
-WINDOW_BORDER = 100
+CELL_SIZE = get_cell_size(screen_width - 100, screen_height - 100)
+WINDOW_BORDER = 90
 WINDOW_SIZE = (BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE + WINDOW_BORDER)
 
 
@@ -109,7 +109,11 @@ class ChessGame:
     def handle_click(self, row, col):
         if self.selected_piece is None:
             print("Selected - " + str(row) + ", " + str(col))
-            self.selected_piece = (row, col)
+            if (self.current_player == "black" and self.board[row][col] < 6) or (self.current_player == "white" and self.board[row][col] >= 6):
+                self.selected_piece = (row, col)
+                self.message = None
+            else:
+                self.message = "НЕ ВАШ ХОД"
         else:
             start_row, start_col = self.selected_piece
             piece = self.board[start_row][start_col]
@@ -149,7 +153,7 @@ class ChessGame:
             message_box_surface.fill(WHITE)
             pygame.draw.rect(message_box_surface, RED, (0, 0, message_box_width, message_box_height), 2)
             message_box_surface.blit(text_surface, (10, 5))
-            self.screen.blit(message_box_surface, (130, 200))
+            self.screen.blit(message_box_surface, (180, 200))
 
     def player_selection(self):
         selection_made = False
@@ -197,7 +201,7 @@ class ChessGame:
         message_box_surface.fill(WHITE)
         pygame.draw.rect(message_box_surface, RED, (0, 0, message_box_width, message_box_height), 2)
         message_box_surface.blit(text_surface, (10, 5))
-        self.screen.blit(message_box_surface, ((WINDOW_SIZE[0] - message_box_width), 10))
+        self.screen.blit(message_box_surface, ((WINDOW_SIZE[0] - message_box_width), WINDOW_SIZE[1] - 80))
 
         elapsed_time = (pygame.time.get_ticks() - self.last_move_time) // 1000  # Время в секундах
         timer_text = f"Time since last move: {elapsed_time}s"
@@ -208,10 +212,11 @@ class ChessGame:
         timer_box_surface.fill(WHITE)
         pygame.draw.rect(timer_box_surface, RED, (0, 0, timer_box_width, timer_box_height), 2)
         timer_box_surface.blit(timer_surface, (10, 5))
-        self.screen.blit(timer_box_surface, ((WINDOW_SIZE[0] - 0) / 20, 10))
+        self.screen.blit(timer_box_surface, (0, WINDOW_SIZE[1] - 80))
 
     def run(self):
         # pygame.display.set_mode(WINDOW_SIZE, pygame.FULLSCREEN)
+
         self.player_color = self.player_selection()
         self.other_player_color = "black" if self.player_color == "white" else "white"
         while not self.game_over:
