@@ -57,11 +57,12 @@ class MovesValidator:
                         board[king_row][king_col] = None
                         board[new_row][new_col] = 11 if king_color == "white" else 5
                         if not self.is_under_attack(new_row, new_col, attacking_color, board):
-                            # Undo the hypothetical move
+
+                            print("KING CAN ESCAPE")
                             board[new_row][new_col] = saved_piece
                             board[king_row][king_col] = 11 if king_color == "white" else 5
                             return False
-                        # Отмена хода который
+                        # Отмена хода
                         board[new_row][new_col] = saved_piece
                         board[king_row][king_col] = 11 if king_color == "white" else 5
 
@@ -73,19 +74,22 @@ class MovesValidator:
                             king_color == "black" and 0 <= board[r][c] < 6):
                         for new_r in range(BOARD_SIZE):
                             for new_c in range(BOARD_SIZE):
-                                if self.is_valid_move(board[r][c], r, c, new_r, new_c, board):
-                                    # Делаем ход
-                                    captured_piece = board[new_r][new_c]
-                                    board[new_r][new_c] = board[r][c]
-                                    board[r][c] = None
-                                    if not self.is_check(king_row, king_col, board):
+                                if board[r][c] != 11 and board[r][c] != 5:
+                                    if self.is_valid_move(board[r][c], r, c, new_r, new_c, board):
+                                        # Делаем ход
+                                        captured_piece = board[new_r][new_c]
+                                        board[new_r][new_c] = board[r][c]
+                                        board[r][c] = None
+                                        if not self.is_check(king_row, king_col, board):
+                                            print("SUGGESTED SAVE MOVE: from " + str(r) +", " + str(c) +"  with " + str(board[new_r][new_c]) + "   to " + str(new_r) +", " + str(new_c))
+                                            # Отмена хода
+                                            print("KING CAN BE SAVED")
+                                            board[r][c] = board[new_r][new_c]
+                                            board[new_r][new_c] = captured_piece
+                                            return False
                                         # Отмена хода
                                         board[r][c] = board[new_r][new_c]
                                         board[new_r][new_c] = captured_piece
-                                        return False
-                                    # Отмена хода
-                                    board[r][c] = board[new_r][new_c]
-                                    board[new_r][new_c] = captured_piece
 
         return True  # Мат - если не вышел сам и не закрыли фигуры
 

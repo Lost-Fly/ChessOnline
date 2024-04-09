@@ -202,6 +202,21 @@ class ChessGame:
 
         return player1_color
 
+    def bots_play(self):
+        while not self.game_over:
+            self.screen.fill(BLACK)
+            self.draw_board()
+            self.draw_pieces()
+            self.bot_make_random_move()
+            self.show_current_player()
+            self.check_for_check_and_checkmate()
+            pygame.display.flip()
+            self.clock.tick(1)
+            time.sleep(0.5)
+
+            # Смена хода
+            self.current_player = "black" if self.current_player == "white" else "white"
+
     def game_mode_selection(self):
         selection_made = False
         play_with_bot = None
@@ -211,14 +226,17 @@ class ChessGame:
             title = button_font.render("Выберите режим игры", True, WHITE)
             button_bot = button_font.render("Игра с ботом", True, BLACK, WHITE)
             button_no_bot = button_font.render("Игра без бота", True, WHITE, BLACK)
+            button_two_bot = button_font.render("Игра двух ботов", True, WHITE, BLACK)
 
             title_rect = title.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 4))
             button_bot_rect = button_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 - 50))
             button_no_bot_rect = button_no_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 50))
+            button_two_bot_rect = button_no_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 100))
 
             self.screen.blit(title, title_rect)
             self.screen.blit(button_bot, button_bot_rect)
             self.screen.blit(button_no_bot, button_no_bot_rect)
+            self.screen.blit(button_two_bot, button_two_bot_rect)
 
             for event in pygame.event.get():
                 if event.type == QUIT:
@@ -232,6 +250,10 @@ class ChessGame:
                     elif button_no_bot_rect.collidepoint(x, y):
                         play_with_bot = False
                         selection_made = True
+                    elif button_two_bot_rect.collidepoint(x, y):
+                        play_with_bot = False
+                        selection_made = True
+                        self.other_player_color = "bot"
 
             pygame.display.flip()
             self.clock.tick(30)
@@ -250,6 +272,7 @@ class ChessGame:
             return None
 
     def bot_make_random_move(self):
+        # self.clock.tick(1)
         # time.sleep(1)
         # Получаем список всех возможных ходов
         all_moves = self.moves_validator.get_all_possible_moves(self.current_player, self.board)
@@ -260,7 +283,7 @@ class ChessGame:
         else:
             # Если ходов нет - это пат или мат
             self.game_over = True
-            self.message = f"СТАЛЕМАТ! {self.other_player_color.capitalize()} wins!"
+            self.message = f"МАТ! {self.other_player_color.capitalize()} wins!"
 
     def show_current_player(self):
         text_surface = self.font.render(f"Current Player: {self.current_player.capitalize()}", True, BLACK)
@@ -296,7 +319,7 @@ class ChessGame:
                         is_checkmate = self.moves_validator.is_checkmate(row, col, self.board)
                         print(is_checkmate)
                         self.highlight_check_or_checkmate(row, col, is_checkmate)
-                        if is_checkmate:
+                        if is_checkmate or (is_check and self.player_color == self.current_player):
                             self.game_over = True
                             winner = "White" if self.current_player == "black" else "Black"
                             self.message = f"МАТ! {winner} wins!"
@@ -311,21 +334,30 @@ class ChessGame:
 
         self.bot_mode = self.game_mode_selection()
         self.player_color = self.player_color_selection()
-        self.other_player_color = "black" if self.player_color == "white" else "white"
-        while not self.game_over:
-            self.screen.fill(BLACK)
-            self.draw_board()
-            self.draw_pieces()
-            self.handle_events()
-            self.draw_text()
-            if self.bot_mode and self.current_player == self.other_player_color:
-                self.bot_make_random_move()
-                self.current_player = self.player_color
-                # time.sleep(3)
-            self.show_current_player()
-            self.check_for_check_and_checkmate()
-            pygame.display.flip()
-            self.clock.tick(30)
+
+        # Вариант режима игры - играют только боты.
+        print(self.other_player_color)
+        play_bots_only = self.other_player_color == "bot"
+
+        # Если выбран режим только боты, то запускаем соответствующий режим
+        if play_bots_only:
+            self.bots_play()
+        else:
+            self.other_player_color = "black" if self.player_color == "white" else "white"
+            while True:
+                self.screen.fill(BLACK)
+                self.draw_board()
+                self.draw_pieces()
+                self.handle_events()
+                self.draw_text()
+                if self.bot_mode and self.current_player == self.other_player_color:
+                    self.bot_make_random_move()
+                    self.current_player = self.player_color
+                    # time.sleep(3)
+                self.show_current_player()
+                self.check_for_check_and_checkmate()
+                pygame.display.flip()
+                self.clock.tick(30)
 
 
 if __name__ == "__main__":
