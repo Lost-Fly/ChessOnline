@@ -1,7 +1,13 @@
 import pygame
 import sys
 from pygame.locals import *
+import random
+import time
 
+
+# from client.src.tools.constants import *
+# from client.src.tools.moves_validator import MovesValidator
+from tools.constants import *
 from tools.moves_validator import MovesValidator
 
 BOARD_SIZE = 8
@@ -11,10 +17,11 @@ BLACK = (0, 0, 0)
 RED = (255, 36, 0)
 GREEN = (0, 255, 0)
 FONT_SIZE = 40
+ORANGE = (255, 43, 67)
 
 
-def get_cell_size(screen_width, screen_height):
-    return min(screen_width, screen_height) // BOARD_SIZE
+def get_cell_size(screen_w, screen_h):
+    return min(screen_w, screen_h) // BOARD_SIZE
 
 
 pygame.display.init()
@@ -27,13 +34,14 @@ WINDOW_SIZE = (BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE + WINDOW_BORDER)
 class ChessGame:
     def __init__(self):
         pygame.init()
+        self.bot_mode = False
         self.message = None
         self.font = pygame.font.Font(None, FONT_SIZE)
         self.screen = pygame.display.set_mode(WINDOW_SIZE)
-        pygame.display.set_caption("Chess Game")
+        pygame.display.set_caption(GAME_NAME)
         self.clock = pygame.time.Clock()
         self.board = self.create_board()
-        self.moves_validator = MovesValidator(self.board)
+        self.moves_validator = MovesValidator()
         self.selected_piece = None
         self.last_move_time = pygame.time.get_ticks()
         self.player_color = "white"
@@ -109,11 +117,13 @@ class ChessGame:
     def handle_click(self, row, col):
         if self.selected_piece is None:
             print("Selected - " + str(row) + ", " + str(col))
-            if (self.current_player == "black" and self.board[row][col] < 6) or (self.current_player == "white" and self.board[row][col] >= 6):
-                self.selected_piece = (row, col)
-                self.message = None
-            else:
-                self.message = "НЕ ВАШ ХОД"
+            if self.board[row][col] is not None:
+                if (self.current_player == "black" and self.board[row][col] < 6) or (
+                        self.current_player == "white" and self.board[row][col] >= 6):
+                    self.selected_piece = (row, col)
+                    self.message = None
+                else:
+                    self.message = NOT_YOUR_MOVE
         else:
             start_row, start_col = self.selected_piece
             piece = self.board[start_row][start_col]
@@ -121,7 +131,7 @@ class ChessGame:
                 self.selected_piece = None
                 self.message = None
             else:
-                if self.moves_validator.is_valid_move(piece, start_row, start_col, row, col):
+                if self.moves_validator.is_valid_move(piece, start_row, start_col, row, col, self.board):
                     self.make_move(self.selected_piece, (row, col))
                     self.selected_piece = None
                     self.message = None
@@ -129,7 +139,7 @@ class ChessGame:
                     # Смена хода
                     self.current_player = "black" if self.current_player == "white" else "white"
                 else:
-                    self.message = "Неверная попытка хода!"
+                    self.message = INCORRECT_MOVE
 
     def make_move(self, start_pos, end_pos):
 
@@ -155,20 +165,20 @@ class ChessGame:
             message_box_surface.blit(text_surface, (10, 5))
             self.screen.blit(message_box_surface, (180, 200))
 
-    def player_selection(self):
+    def player_color_selection(self):
         selection_made = False
         player1_color = None
         title_font = pygame.font.Font(None, 60)
         button_font = pygame.font.Font(None, 40)
         while not selection_made:
             self.screen.fill(BLACK)
-            title = title_font.render("Выберите цвет первого игрока", True, WHITE)
-            button_white = button_font.render("Играть за белых", True, BLACK, WHITE)
-            button_black = button_font.render("Играть за чёрных", True, WHITE, BLACK)
+            title = title_font.render(CHOSE_PLAYER_COLOR, True, WHITE)
+            button_white = button_font.render(PLAY_FOR_WHITE, True, BLACK, WHITE)
+            button_black = button_font.render(PLAY_FOR_BLACK, True, WHITE, BLACK)
 
             title_rect = title.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 4))
-            button_white_rect = button_white.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2))
-            button_black_rect = button_black.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 100))
+            button_white_rect = button_white.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 - 50))
+            button_black_rect = button_black.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 50))
 
             self.screen.blit(title, title_rect)
             self.screen.blit(button_white, button_white_rect)
@@ -192,6 +202,66 @@ class ChessGame:
 
         return player1_color
 
+    def game_mode_selection(self):
+        selection_made = False
+        play_with_bot = None
+        button_font = pygame.font.Font(None, 40)
+        while not selection_made:
+            self.screen.fill(BLACK)
+            title = button_font.render("Выберите режим игры", True, WHITE)
+            button_bot = button_font.render("Игра с ботом", True, BLACK, WHITE)
+            button_no_bot = button_font.render("Игра без бота", True, WHITE, BLACK)
+
+            title_rect = title.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 4))
+            button_bot_rect = button_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 - 50))
+            button_no_bot_rect = button_no_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 50))
+
+            self.screen.blit(title, title_rect)
+            self.screen.blit(button_bot, button_bot_rect)
+            self.screen.blit(button_no_bot, button_no_bot_rect)
+
+            for event in pygame.event.get():
+                if event.type == QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif event.type == MOUSEBUTTONDOWN:
+                    x, y = pygame.mouse.get_pos()
+                    if button_bot_rect.collidepoint(x, y):
+                        play_with_bot = True
+                        selection_made = True
+                    elif button_no_bot_rect.collidepoint(x, y):
+                        play_with_bot = False
+                        selection_made = True
+
+            pygame.display.flip()
+            self.clock.tick(30)
+
+        return play_with_bot
+
+    def choose_random_black_piece(self, board):
+        # Фильтрация списка фигур, чтобы оставить только черные
+        black_pieces = [(i, j) for i in range(len(board))
+                        for j in range(len(board[i])) if board[i][j] is not None and board[i][j] < 6]
+
+        # Если в списке есть черные фигуры, выбираем из них одну случайно
+        if black_pieces:
+            return random.choice(black_pieces)
+        else:
+            return None
+
+    def bot_make_random_move(self):
+        # time.sleep(1)
+        # Получаем список всех возможных ходов
+        all_moves = self.moves_validator.get_all_possible_moves(self.current_player, self.board)
+        # Если есть ходы, случайным образом выбираем один ход из списка
+        if all_moves:
+            start_pos, end_pos = random.choice(all_moves)
+            self.make_move(start_pos, end_pos)
+        else:
+            # Если ходов нет - это пат или мат
+            self.game_over = True
+            self.message = f"СТАЛЕМАТ! {self.other_player_color.capitalize()} wins!"
+
     def show_current_player(self):
         text_surface = self.font.render(f"Current Player: {self.current_player.capitalize()}", True, BLACK)
         text_width, text_height = text_surface.get_size()
@@ -206,7 +276,7 @@ class ChessGame:
         elapsed_time = (pygame.time.get_ticks() - self.last_move_time) // 1000  # Время в секундах
         timer_text = f"Time since last move: {elapsed_time}s"
         timer_surface = self.font.render(timer_text, True, BLACK)
-        timer_box_width = text_width + 50
+        timer_box_width = text_width + 100
         timer_box_height = text_height + 10
         timer_box_surface = pygame.Surface((timer_box_width, timer_box_height))
         timer_box_surface.fill(WHITE)
@@ -214,10 +284,33 @@ class ChessGame:
         timer_box_surface.blit(timer_surface, (10, 5))
         self.screen.blit(timer_box_surface, (0, WINDOW_SIZE[1] - 80))
 
+    def check_for_check_and_checkmate(self):
+        # Сначала определяем, находится ли какой-либо из королей под шахом
+        for row in range(BOARD_SIZE):
+            for col in range(BOARD_SIZE):
+                piece = self.board[row][col]
+                if piece == 5 or piece == 11:  # Индексы королей
+                    is_check = self.moves_validator.is_check(row, col, self.board)
+                    if is_check:
+                        # Проверяем, есть ли возможные ходы для короля, если нет, то это мат
+                        is_checkmate = self.moves_validator.is_checkmate(row, col, self.board)
+                        print(is_checkmate)
+                        self.highlight_check_or_checkmate(row, col, is_checkmate)
+                        if is_checkmate:
+                            self.game_over = True
+                            winner = "White" if self.current_player == "black" else "Black"
+                            self.message = f"МАТ! {winner} wins!"
+
+    def highlight_check_or_checkmate(self, row, col, is_checkmate):
+        color = RED if is_checkmate else ORANGE
+        highlight_rect = pygame.Rect(col * CELL_SIZE - 5, row * CELL_SIZE - 5, CELL_SIZE + 10, CELL_SIZE + 10)
+        pygame.draw.rect(self.screen, color, highlight_rect, 2)
+
     def run(self):
         # pygame.display.set_mode(WINDOW_SIZE, pygame.FULLSCREEN)
 
-        self.player_color = self.player_selection()
+        self.bot_mode = self.game_mode_selection()
+        self.player_color = self.player_color_selection()
         self.other_player_color = "black" if self.player_color == "white" else "white"
         while not self.game_over:
             self.screen.fill(BLACK)
@@ -225,7 +318,12 @@ class ChessGame:
             self.draw_pieces()
             self.handle_events()
             self.draw_text()
+            if self.bot_mode and self.current_player == self.other_player_color:
+                self.bot_make_random_move()
+                self.current_player = self.player_color
+                # time.sleep(3)
             self.show_current_player()
+            self.check_for_check_and_checkmate()
             pygame.display.flip()
             self.clock.tick(30)
 
