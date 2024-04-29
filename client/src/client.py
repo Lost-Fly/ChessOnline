@@ -11,7 +11,8 @@ class ChessClient:
     def connect_to_server(self):
         try:
             self.conn.connect((self.host, self.port))
-            print("Connected to the server")
+            # print(self.receive_move())
+            # print("Connected to the server")
         except ConnectionRefusedError:
             print("Server is not available")
 
@@ -19,6 +20,8 @@ class ChessClient:
         try:
             # Кодируем ход в JSON формат
             move_data = json.dumps(move)
+
+            print("SEND DATA CAST TO JSON" + move_data)
             # Отправляем ход на сервер
             self.conn.sendall(move_data.encode('utf-8'))
         except Exception as e:
@@ -32,9 +35,16 @@ class ChessClient:
                 print("No data received")
                 return None
 
+            print("RECEIVE DATA BEFORE CAST TO JSON" + move_data.decode('utf-8'))
+
+            if move_data.decode('utf-8') == "white" or move_data.decode('utf-8') == "black":
+                return move_data.decode('utf-8')
+
             # Декодируем JSON формат в Python объект
             move = json.loads(move_data.decode('utf-8'))
+
             return move
+
         except Exception as e:
-            print(f"Failed to receive move: {e}")
+            # print(f"Failed to receive move in client: {e}")
             return None
