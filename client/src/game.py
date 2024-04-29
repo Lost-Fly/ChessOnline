@@ -30,6 +30,8 @@ WINDOW_BORDER = 90
 WINDOW_SIZE = (BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE + WINDOW_BORDER)
 
 
+
+
 class ChessGame:
     def __init__(self):
         self.bot_mode_difficulty = "simple"
@@ -274,8 +276,6 @@ class ChessGame:
                         self.other_player_color = "bot"
                     elif button_online_rect.collidepoint(x, y):
                         self.online_mode = True
-                        self.client = ChessClient()
-                        self.client.connect_to_server()
                         selection_made = True
 
             pygame.display.flip()
@@ -344,24 +344,54 @@ class ChessGame:
     def online_mode_logic(self):
         self.message = "Waiting for opponent's move..."
 
+        print("Waiting for opponent's move...")
+
         # Получаем ход с сервера
         opponent_move = self.client.receive_move()
+        print("OPPONENT MOVE" +
+              str(opponent_move))
         self.message = None
         if opponent_move:
             # Применяем полученный ход к нашей доске
-            start_pos, end_pos = opponent_move['start'], opponent_move['end']
+            start_pos, end_pos = opponent_move[0], opponent_move[1]
             self.make_move(start_pos, end_pos)
             self.current_player = self.player_color
         self.message = None
 
+    def get_online_color(self):
+        print("BEF GET COLOR")
+        color_data = self.client.receive_move()
+        print("GET  ON COLOR " + str(color_data))
+        # Проверка, что полученные данные не None и являются строкой
+        if color_data and isinstance(color_data, str):
+            print("SET PL COLOR")
+            self.player_color = color_data
+            return color_data
+        else:
+            # Если данные не получены или некорректны, возвращаем None или выбрасываем исключение
+            print("Failed to receive color data.")
+            return None
+
     def run(self):
 
         self.bot_mode = self.game_mode_selection()
-        print(self.bot_mode)
-        self.player_color = self.player_color_selection()
+        # print(self.bot_mode)
+
+        print("ONLINE MODE " + str(self.online_mode))
+        if self.online_mode:
+            self.client = ChessClient()
+            print("bef con")
+            self.client.connect_to_server()
+            print("after con")
+
+            if not self.get_online_color():
+                print("Unable to start the game due to connection issues.")
+                return
+        else:
+            self.player_color = self.player_color_selection()
 
         # Вариант режима игры - играют только боты.
-        print(self.other_player_color)
+
         play_bots_only = self.other_player_color == "bot"
 
         # Если выбран режим только боты, то запускаем соответствующий режим
@@ -369,30 +399,37 @@ class ChessGame:
             self.bots_play()
         else:
             self.other_player_color = "black" if self.player_color == "white" else "white"
+            print("OTHER PL COLOR" + self.other_player_color)
             while True:
                 self.screen.fill(BLACK)
                 self.draw_board()
                 self.draw_pieces()
-                self.handle_events()
                 self.draw_text()
                 if self.online_mode:
+
                     if self.current_player == self.player_color:
                         # Обрабатываем клик и отправляем ход если это наш ход
+                        print("ONLINE MODE CURR P")
                         self.handle_events()
                     else:
                         # Получаем ход от противника
+                        print("ONLINE MODE OTHER PL")
                         self.online_mode_logic()
                         # Проверка на окончание игры и отображение сообщений
                     self.check_for_check_and_checkmate()
                     self.show_current_player()
                 else:
-                    if self.bot_mode and self.current_player == self.other_player_color:
+                    if self.bot_mode and self.current_player == self.player_color:
+                        self.handle_events()
+                    elif self.bot_mode and self.current_player == self.other_player_color:
                         if self.bot_mode_difficulty == "simple":
                             self.bot_make_random_move()
                         elif self.bot_mode_difficulty == "advanced":
                             curr_move = self.advanced_bot.advanced_bot_move(self.current_player, self.board)
                             self.make_move(curr_move[0], curr_move[1])
                         self.current_player = self.player_color
+                    elif not self.bot_mode:
+                        self.handle_events()
 
                 self.show_current_player()
                 self.check_for_check_and_checkmate()
