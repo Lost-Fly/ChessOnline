@@ -1,10 +1,12 @@
+import copy
+
 import pygame
 import sys
 from pygame.locals import *
 import random
 import time
 
-
+from client import ChessClient
 # from client.src.tools.constants import *
 # from client.src.tools.moves_validator import MovesValidator
 from tools.constants import *
@@ -33,6 +35,7 @@ WINDOW_SIZE = (BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE + WINDOW_BORDER)
 
 class ChessGame:
     def __init__(self):
+        self.bot_mode_difficulty = "simple"
         pygame.init()
         self.bot_mode = False
         self.message = None
@@ -48,6 +51,8 @@ class ChessGame:
         self.current_player = "white"
         self.other_player_color = "black" if self.player_color == "white" else "white"
         self.game_over = False
+        self.online_mode = False
+        self.client = None  # Reference to the client object
         self.piece_images = {
             0: "assets/black_pawn.png", 1: "assets/black_rook.png", 2: "assets/black_knight.png",
             3: "assets/black_bishop.png", 4: "assets/black_queen.png", 5: "assets/black_king.png",
@@ -133,6 +138,7 @@ class ChessGame:
             else:
                 if self.moves_validator.is_valid_move(piece, start_row, start_col, row, col, self.board):
                     self.make_move(self.selected_piece, (row, col))
+                    # self.client.send_move((self.selected_piece, (row, col)))
                     self.selected_piece = None
                     self.message = None
                     self.last_move_time = pygame.time.get_ticks()
@@ -221,22 +227,35 @@ class ChessGame:
         selection_made = False
         play_with_bot = None
         button_font = pygame.font.Font(None, 40)
+
+        # bot_difficulty = "simple"
+
         while not selection_made:
             self.screen.fill(BLACK)
+
             title = button_font.render("Выберите режим игры", True, WHITE)
-            button_bot = button_font.render("Игра с ботом", True, BLACK, WHITE)
-            button_no_bot = button_font.render("Игра без бота", True, WHITE, BLACK)
-            button_two_bot = button_font.render("Игра двух ботов", True, WHITE, BLACK)
+
+            button_no_bot = button_font.render("Игра без бота", True, BLACK, WHITE)
+            button_two_bot = button_font.render("Игра двух ботов", True, BLACK, WHITE)
+            button_simple_bot = button_font.render("Простой бот", True, BLACK, WHITE)
+            button_advanced_bot = button_font.render("Продвинутый бот", True, BLACK, WHITE)
 
             title_rect = title.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 4))
-            button_bot_rect = button_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 - 50))
-            button_no_bot_rect = button_no_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 50))
-            button_two_bot_rect = button_no_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 100))
+
+            button_no_bot_rect = button_no_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 - 100))
+            button_two_bot_rect = button_two_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 100))
+            button_simple_bot_rect = button_simple_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2))
+            button_advanced_bot_rect = button_advanced_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 50))
+
+            button_online = button_font.render("Игра через сеть", True, BLACK, WHITE)
+            button_online_rect = button_online.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 150))
+            self.screen.blit(button_online, button_online_rect)
 
             self.screen.blit(title, title_rect)
-            self.screen.blit(button_bot, button_bot_rect)
             self.screen.blit(button_no_bot, button_no_bot_rect)
             self.screen.blit(button_two_bot, button_two_bot_rect)
+            self.screen.blit(button_simple_bot, button_simple_bot_rect)
+            self.screen.blit(button_advanced_bot, button_advanced_bot_rect)
 
             for event in pygame.event.get():
                 if event.type == QUIT:
@@ -244,16 +263,26 @@ class ChessGame:
                     sys.exit()
                 elif event.type == MOUSEBUTTONDOWN:
                     x, y = pygame.mouse.get_pos()
-                    if button_bot_rect.collidepoint(x, y):
-                        play_with_bot = True
-                        selection_made = True
-                    elif button_no_bot_rect.collidepoint(x, y):
+                    if button_no_bot_rect.collidepoint(x, y):
                         play_with_bot = False
+                        selection_made = True
+                    elif button_simple_bot_rect.collidepoint(x, y):
+                        play_with_bot = True
+                        self.bot_mode_difficulty = "advanced"
+                        selection_made = True
+                    elif button_advanced_bot_rect.collidepoint(x, y):
+                        play_with_bot = True
+                        self.bot_mode_difficulty = "advanced"
                         selection_made = True
                     elif button_two_bot_rect.collidepoint(x, y):
                         play_with_bot = False
                         selection_made = True
                         self.other_player_color = "bot"
+                    elif button_online_rect.collidepoint(x, y):
+                        self.online_mode = True
+                        self.client = ChessClient()
+                        self.client.connect_to_server()
+                        selection_made = True
 
             pygame.display.flip()
             self.clock.tick(30)
@@ -329,10 +358,86 @@ class ChessGame:
         highlight_rect = pygame.Rect(col * CELL_SIZE - 5, row * CELL_SIZE - 5, CELL_SIZE + 10, CELL_SIZE + 10)
         pygame.draw.rect(self.screen, color, highlight_rect, 2)
 
+    def evaluate_board(self, board):
+        piece_value = {
+            0: -10, 1: -50, 2: -30, 3: -30, 4: -90, 5: -900,  # Black pieces values
+            6: 10, 7: 50, 8: 30, 9: 30, 10: 90, 11: 900  # White pieces values
+        }
+        value = 0
+        for row in board:
+            for piece in row:
+                if piece is not None:
+                    value += piece_value[piece]
+        return value
+
+    def simulate_move(self, board, start_pos, end_pos):
+        piece = board[start_pos[0]][start_pos[1]]
+        board[start_pos[0]][start_pos[1]] = None
+        board[end_pos[0]][end_pos[1]] = piece
+
+    def minimax(self, board, depth, alpha, beta, maximizing_player):
+        if depth == 0 or self.game_over:
+            return self.evaluate_board(board)
+
+        if maximizing_player:
+            max_eval = -float('inf')
+            all_moves = self.moves_validator.get_all_possible_moves('white', self.board)
+            for move in all_moves:
+                new_board = copy.deepcopy(board)
+                self.simulate_move(new_board, move[0], move[1])
+                eval_ = self.minimax(new_board, depth - 1, alpha, beta, False)
+                max_eval = max(max_eval, eval_)
+                alpha = max(alpha, eval_)
+                if beta <= alpha:
+                    break
+            return max_eval
+        else:
+            min_eval = float('inf')
+            all_moves = self.moves_validator.get_all_possible_moves('black', self.board)
+            for move in all_moves:
+                new_board = copy.deepcopy(board)
+                self.simulate_move(new_board, move[0], move[1])
+                eval_ = self.minimax(new_board, depth - 1, alpha, beta, True)
+                min_eval = min(min_eval, eval_)
+                beta = min(beta, eval_)
+                if beta <= alpha:
+                    break
+            return min_eval
+
+    def advanced_bot_move(self):
+        best_score = -float('inf')
+        best_move = None
+        all_possible_moves = self.moves_validator.get_all_possible_moves(self.current_player, self.board)
+
+        for move in all_possible_moves:
+            cloned_board = copy.deepcopy(self.board)
+            self.simulate_move(cloned_board, move[0], move[1])
+            score = self.minimax(cloned_board, depth=3, alpha=-float('inf'), beta=float('inf'), maximizing_player=True)
+            if score > best_score:
+                best_score = score
+                best_move = move
+
+        if best_move:
+            self.make_move(best_move[0], best_move[1])
+
+    def online_mode_logic(self):
+        self.message = "Waiting for opponent's move..."
+
+        # Получаем ход с сервера
+        opponent_move = self.client.receive_move()
+        self.message = None
+        if opponent_move:
+            # Применяем полученный ход к нашей доске
+            start_pos, end_pos = opponent_move['start'], opponent_move['end']
+            self.make_move(start_pos, end_pos)
+            self.current_player = self.player_color
+        self.message = None
+
     def run(self):
         # pygame.display.set_mode(WINDOW_SIZE, pygame.FULLSCREEN)
 
         self.bot_mode = self.game_mode_selection()
+        print(self.bot_mode)
         self.player_color = self.player_color_selection()
 
         # Вариант режима игры - играют только боты.
@@ -350,10 +455,25 @@ class ChessGame:
                 self.draw_pieces()
                 self.handle_events()
                 self.draw_text()
-                if self.bot_mode and self.current_player == self.other_player_color:
-                    self.bot_make_random_move()
-                    self.current_player = self.player_color
-                    # time.sleep(3)
+                if self.online_mode:
+                    if self.current_player == self.player_color:
+                        # Обрабатываем клик и отправляем ход если это наш ход
+                        self.handle_events()
+                    else:
+                        # Получаем ход от противника
+                        self.online_mode_logic()
+                        # Проверка на окончание игры и отображение сообщений
+                    self.check_for_check_and_checkmate()
+                    self.show_current_player()
+                else:
+                    if self.bot_mode and self.current_player == self.other_player_color:
+                        if self.bot_mode_difficulty == "simple":
+                            self.bot_make_random_move()
+                        elif self.bot_mode_difficulty == "advanced":
+                            self.advanced_bot_move()
+                        self.current_player = self.player_color
+                        # time.sleep(3)
+
                 self.show_current_player()
                 self.check_for_check_and_checkmate()
                 pygame.display.flip()
