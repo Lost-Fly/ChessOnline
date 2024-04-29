@@ -1,5 +1,3 @@
-import copy
-
 import pygame
 import sys
 from pygame.locals import *
@@ -7,8 +5,7 @@ import random
 import time
 
 from client import ChessClient
-# from client.src.tools.constants import *
-# from client.src.tools.moves_validator import MovesValidator
+from advanced_bot import AdvancedBot
 from tools.constants import *
 from tools.moves_validator import MovesValidator
 
@@ -52,7 +49,8 @@ class ChessGame:
         self.other_player_color = "black" if self.player_color == "white" else "white"
         self.game_over = False
         self.online_mode = False
-        self.client = None  # Reference to the client object
+        self.client = None
+        self.advanced_bot = AdvancedBot(self.moves_validator)
         self.piece_images = {
             0: "assets/black_pawn.png", 1: "assets/black_rook.png", 2: "assets/black_knight.png",
             3: "assets/black_bishop.png", 4: "assets/black_queen.png", 5: "assets/black_king.png",
@@ -93,14 +91,12 @@ class ChessGame:
                 pygame.draw.rect(self.screen, colorBox, (col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE))
 
     def draw_pieces(self):
-
         for row in range(BOARD_SIZE):
             for col in range(BOARD_SIZE):
                 piece = self.board[row][col]
                 if piece is not None:
                     image = pygame.image.load(self.piece_images[piece])
                     image_width, image_height = image.get_size()
-                    # image = pygame.transform.scale(image, (CELL_SIZE, CELL_SIZE))
                     image = pygame.transform.scale(image, (image_width * 4, image_height * 4))
                     # Подсветка фигур
                     if self.selected_piece == (row, col):
@@ -138,7 +134,8 @@ class ChessGame:
             else:
                 if self.moves_validator.is_valid_move(piece, start_row, start_col, row, col, self.board):
                     self.make_move(self.selected_piece, (row, col))
-                    # self.client.send_move((self.selected_piece, (row, col)))
+                    if self.online_mode:
+                        self.client.send_move((self.selected_piece, (row, col)))
                     self.selected_piece = None
                     self.message = None
                     self.last_move_time = pygame.time.get_ticks()
@@ -148,9 +145,7 @@ class ChessGame:
                     self.message = INCORRECT_MOVE
 
     def make_move(self, start_pos, end_pos):
-
         print("Make Move - " + str(start_pos) + ", " + str(end_pos))
-
         row_start, col_start = start_pos
         row_end, col_end = end_pos
 
@@ -228,8 +223,6 @@ class ChessGame:
         play_with_bot = None
         button_font = pygame.font.Font(None, 40)
 
-        # bot_difficulty = "simple"
-
         while not selection_made:
             self.screen.fill(BLACK)
 
@@ -245,7 +238,8 @@ class ChessGame:
             button_no_bot_rect = button_no_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 - 100))
             button_two_bot_rect = button_two_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 100))
             button_simple_bot_rect = button_simple_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2))
-            button_advanced_bot_rect = button_advanced_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 50))
+            button_advanced_bot_rect = button_advanced_bot.get_rect(
+                center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 50))
 
             button_online = button_font.render("Игра через сеть", True, BLACK, WHITE)
             button_online_rect = button_online.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 150))
@@ -289,17 +283,6 @@ class ChessGame:
 
         return play_with_bot
 
-    def choose_random_black_piece(self, board):
-        # Фильтрация списка фигур, чтобы оставить только черные
-        black_pieces = [(i, j) for i in range(len(board))
-                        for j in range(len(board[i])) if board[i][j] is not None and board[i][j] < 6]
-
-        # Если в списке есть черные фигуры, выбираем из них одну случайно
-        if black_pieces:
-            return random.choice(black_pieces)
-        else:
-            return None
-
     def bot_make_random_move(self):
         # self.clock.tick(1)
         # time.sleep(1)
@@ -325,7 +308,7 @@ class ChessGame:
         message_box_surface.blit(text_surface, (10, 5))
         self.screen.blit(message_box_surface, ((WINDOW_SIZE[0] - message_box_width), WINDOW_SIZE[1] - 80))
 
-        elapsed_time = (pygame.time.get_ticks() - self.last_move_time) // 1000  # Время в секундах
+        elapsed_time = (pygame.time.get_ticks() - self.last_move_time) // 1000
         timer_text = f"Time since last move: {elapsed_time}s"
         timer_surface = self.font.render(timer_text, True, BLACK)
         timer_box_width = text_width + 100
@@ -358,68 +341,6 @@ class ChessGame:
         highlight_rect = pygame.Rect(col * CELL_SIZE - 5, row * CELL_SIZE - 5, CELL_SIZE + 10, CELL_SIZE + 10)
         pygame.draw.rect(self.screen, color, highlight_rect, 2)
 
-    def evaluate_board(self, board):
-        piece_value = {
-            0: -10, 1: -50, 2: -30, 3: -30, 4: -90, 5: -900,  # Black pieces values
-            6: 10, 7: 50, 8: 30, 9: 30, 10: 90, 11: 900  # White pieces values
-        }
-        value = 0
-        for row in board:
-            for piece in row:
-                if piece is not None:
-                    value += piece_value[piece]
-        return value
-
-    def simulate_move(self, board, start_pos, end_pos):
-        piece = board[start_pos[0]][start_pos[1]]
-        board[start_pos[0]][start_pos[1]] = None
-        board[end_pos[0]][end_pos[1]] = piece
-
-    def minimax(self, board, depth, alpha, beta, maximizing_player):
-        if depth == 0 or self.game_over:
-            return self.evaluate_board(board)
-
-        if maximizing_player:
-            max_eval = -float('inf')
-            all_moves = self.moves_validator.get_all_possible_moves('white', self.board)
-            for move in all_moves:
-                new_board = copy.deepcopy(board)
-                self.simulate_move(new_board, move[0], move[1])
-                eval_ = self.minimax(new_board, depth - 1, alpha, beta, False)
-                max_eval = max(max_eval, eval_)
-                alpha = max(alpha, eval_)
-                if beta <= alpha:
-                    break
-            return max_eval
-        else:
-            min_eval = float('inf')
-            all_moves = self.moves_validator.get_all_possible_moves('black', self.board)
-            for move in all_moves:
-                new_board = copy.deepcopy(board)
-                self.simulate_move(new_board, move[0], move[1])
-                eval_ = self.minimax(new_board, depth - 1, alpha, beta, True)
-                min_eval = min(min_eval, eval_)
-                beta = min(beta, eval_)
-                if beta <= alpha:
-                    break
-            return min_eval
-
-    def advanced_bot_move(self):
-        best_score = -float('inf')
-        best_move = None
-        all_possible_moves = self.moves_validator.get_all_possible_moves(self.current_player, self.board)
-
-        for move in all_possible_moves:
-            cloned_board = copy.deepcopy(self.board)
-            self.simulate_move(cloned_board, move[0], move[1])
-            score = self.minimax(cloned_board, depth=3, alpha=-float('inf'), beta=float('inf'), maximizing_player=True)
-            if score > best_score:
-                best_score = score
-                best_move = move
-
-        if best_move:
-            self.make_move(best_move[0], best_move[1])
-
     def online_mode_logic(self):
         self.message = "Waiting for opponent's move..."
 
@@ -434,7 +355,6 @@ class ChessGame:
         self.message = None
 
     def run(self):
-        # pygame.display.set_mode(WINDOW_SIZE, pygame.FULLSCREEN)
 
         self.bot_mode = self.game_mode_selection()
         print(self.bot_mode)
@@ -470,9 +390,9 @@ class ChessGame:
                         if self.bot_mode_difficulty == "simple":
                             self.bot_make_random_move()
                         elif self.bot_mode_difficulty == "advanced":
-                            self.advanced_bot_move()
+                            curr_move = self.advanced_bot.advanced_bot_move(self.current_player, self.board)
+                            self.make_move(curr_move[0], curr_move[1])
                         self.current_player = self.player_color
-                        # time.sleep(3)
 
                 self.show_current_player()
                 self.check_for_check_and_checkmate()
