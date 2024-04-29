@@ -5,7 +5,7 @@ import time
 
 
 class ChessServer:
-    def __init__(self, host='127.0.0.1', port=65432):
+    def __init__(self, host='192.168.170.249', port=65432):
         self.host = host
         self.port = port
         self.clients = []
@@ -21,15 +21,19 @@ class ChessServer:
                     conn, addr = s.accept()
                     print(f"Connected by {addr}")
                     self.clients.append(conn)
+                    if len(self.clients) == 1:
+                        time.sleep(2)
+                        white_player = self.clients[0]
+                        white_player.sendall(b'white')
+                        print("send w color")
+
                     if len(self.clients) % 2 == 0:
                         white_player = self.clients[-2]
                         black_player = self.clients[-1]
                         # Отправка цветов игрокам
-                        print("send w color")
                         time.sleep(10)
-                        white_player.sendall(b'white')
-                        print("send w color")
-                        time.sleep(10)
+                        # white_player.sendall(b'white')
+                        # print("send w color")
                         black_player.sendall(b'black')
                         print("send b color")
                         match_id = len(self.matches)
