@@ -3,6 +3,8 @@ import sys
 from pygame.locals import *
 import random
 import time
+import threading
+from queue import Queue
 
 from client import ChessClient
 from advanced_bot import AdvancedBot
@@ -28,8 +30,6 @@ screen_width, screen_height = pygame.display.Info().current_w, pygame.display.In
 CELL_SIZE = get_cell_size(screen_width - 100, screen_height - 100)
 WINDOW_BORDER = 90
 WINDOW_SIZE = (BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE + WINDOW_BORDER)
-
-
 
 
 class ChessGame:
@@ -145,6 +145,11 @@ class ChessGame:
                     self.current_player = "black" if self.current_player == "white" else "white"
                 else:
                     self.message = INCORRECT_MOVE
+                self.screen.fill(BLACK)
+                self.draw_board()
+                self.draw_pieces()
+                self.draw_text()
+                pygame.display.flip()
 
     def make_move(self, start_pos, end_pos):
         print("Make Move - " + str(start_pos) + ", " + str(end_pos))
@@ -377,9 +382,11 @@ class ChessGame:
         self.bot_mode = self.game_mode_selection()
         # print(self.bot_mode)
 
+        self.client = ChessClient()
+
         print("ONLINE MODE " + str(self.online_mode))
         if self.online_mode:
-            self.client = ChessClient()
+
             print("bef con")
             self.client.connect_to_server()
             print("after con")
@@ -405,7 +412,14 @@ class ChessGame:
                 self.draw_board()
                 self.draw_pieces()
                 self.draw_text()
+
+                self.show_current_player()
+                self.check_for_check_and_checkmate()
+                pygame.display.flip()
                 if self.online_mode:
+
+                    if not self.client.is_connected():
+                        self.client.connect_to_server()
 
                     if self.current_player == self.player_color:
                         # Обрабатываем клик и отправляем ход если это наш ход
@@ -431,9 +445,7 @@ class ChessGame:
                     elif not self.bot_mode:
                         self.handle_events()
 
-                self.show_current_player()
-                self.check_for_check_and_checkmate()
-                pygame.display.flip()
+
                 self.clock.tick(30)
 
 

@@ -3,7 +3,7 @@ import json
 
 
 class ChessClient:
-    def __init__(self, host='127.0.0.1', port=65432):
+    def __init__(self, host='192.168.170.249', port=65432):
         self.host = host
         self.port = port
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -12,9 +12,18 @@ class ChessClient:
         try:
             self.conn.connect((self.host, self.port))
             # print(self.receive_move())
-            # print("Connected to the server")
+            print("Connected to the server")
         except ConnectionRefusedError:
             print("Server is not available")
+
+    def is_connected(self):
+        try:
+            # Если соединение активно, getpeername() вернет адрес, иначе будет исключение
+            self.conn.getpeername()
+            return True
+        except:
+            # Если соединение неактивно или не было установлено
+            return False
 
     def send_move(self, move):
         try:
