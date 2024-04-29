@@ -203,11 +203,13 @@ class MovesValidator:
         board[start_pos[0]][start_pos[1]] = None
         board[end_pos[0]][end_pos[1]] = piece
 
-    def find_king(self, board, piece_type):
-        # Этот метод ищет и возвращает позицию короля на доске
-        # в зависимости от цвета переданной фигуры
-        king_value = 11 if piece_type >= 6 else 5  # Белый король имеет значение 11, черный - 5
-        for row in range(self.BOARD_SIZE):
-            for col in range(self.BOARD_SIZE):
-                if board[row][col] == king_value:
-                    return (row, col)
+    # def find_king(self, board, piece_type):
+    #     # Этот метод ищет и возвращает позицию короля на доске
+    #     # в зависимости от цвета переданной фигуры
+    #     king_value = 11 if piece_type >= 6 else 5  # Белый король имеет значение 11, черный - 5
+    #     for row in range(self.BOARD_SIZE):
+    #         for col in range(self.BOARD_SIZE):
+    #             if board[row][col] == king_value:
+    #                 return (row, col)
+    #     return max(abs(start_row - end_row), abs(start_col - end_col)) == 1
+

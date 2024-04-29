@@ -336,7 +336,7 @@ class ChessGame:
                         is_checkmate = self.moves_validator.is_checkmate(row, col, self.board)
                         print(is_checkmate)
                         self.highlight_check_or_checkmate(row, col, is_checkmate)
-                        if is_checkmate or (is_check and self.player_color == self.current_player):
+                        if is_checkmate:
                             self.game_over = True
                             winner = "White" if self.current_player == "black" else "Black"
                             self.message = f"МАТ! {winner} wins!"
