@@ -69,11 +69,10 @@ class AdvancedBot:
         return value
 
     def choose_random_black_piece(self, board):
-        # Фильтрация списка фигур, чтобы оставить только черные
+
         black_pieces = [(i, j) for i in range(len(board))
                         for j in range(len(board[i])) if board[i][j] is not None and board[i][j] < 6]
 
-        # Если в списке есть черные фигуры, выбираем из них одну случайно
         if black_pieces:
             return random.choice(black_pieces)
         else:

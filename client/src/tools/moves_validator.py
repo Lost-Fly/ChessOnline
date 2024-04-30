@@ -1,3 +1,5 @@
+import copy
+
 BOARD_SIZE = 8
 
 
@@ -15,7 +17,23 @@ class MovesValidator:
                         # Проверяем каждую клетку доски на возможность хода для фигуры
                         for end_row in range(BOARD_SIZE):
                             for end_col in range(BOARD_SIZE):
-                                if self.is_valid_move(piece, row, col, end_row, end_col, board):
+
+                                if piece == 5 or piece == 11:  # Индексы королей
+
+                                    cloned_board = copy.deepcopy(board)
+                                    piece = cloned_board[row][col]
+                                    cloned_board[row][col] = None
+                                    cloned_board[end_row][end_col] = piece
+
+                                    is_check = self.is_check(row, col, cloned_board)
+
+                                    if self.is_valid_move(piece, row, col, end_row, end_col, cloned_board) \
+                                            and self.is_valid_move_in_check(row, col, end_row, end_col, cloned_board)\
+                                            and not is_check:
+                                        all_moves.append(((row, col), (end_row, end_col)))
+
+                                elif self.is_valid_move(piece, row, col, end_row, end_col, board) \
+                                        and self.is_valid_move_in_check(row, col, end_row, end_col, board):
                                     all_moves.append(((row, col), (end_row, end_col)))
         return all_moves
 
@@ -57,8 +75,7 @@ class MovesValidator:
                         board[king_row][king_col] = None
                         board[new_row][new_col] = 11 if king_color == "white" else 5
                         if not self.is_under_attack(new_row, new_col, attacking_color, board):
-
-                            print("KING CAN ESCAPE")
+                            # print("KING CAN ESCAPE")
                             board[new_row][new_col] = saved_piece
                             board[king_row][king_col] = 11 if king_color == "white" else 5
                             return False
@@ -81,9 +98,11 @@ class MovesValidator:
                                         board[new_r][new_c] = board[r][c]
                                         board[r][c] = None
                                         if not self.is_check(king_row, king_col, board):
-                                            print("SUGGESTED SAVE MOVE: from " + str(r) +", " + str(c) +"  with " + str(board[new_r][new_c]) + "   to " + str(new_r) +", " + str(new_c))
-                                            # Отмена хода
-                                            print("KING CAN BE SAVED")
+                                            # print(
+                                            #     "SUGGESTED SAVE MOVE: from " + str(r) + ", " + str(c) + "  with " + str(
+                                            #         board[new_r][new_c]) + "   to " + str(new_r) + ", " + str(new_c))
+                                            # # Отмена хода
+                                            # print("KING CAN BE SAVED")
                                             board[r][c] = board[new_r][new_c]
                                             board[new_r][new_c] = captured_piece
                                             return False
@@ -92,6 +111,30 @@ class MovesValidator:
                                         board[new_r][new_c] = captured_piece
 
         return True  # Мат - если не вышел сам и не закрыли фигуры
+
+    def is_valid_move_in_check(self, start_row, start_col, end_row, end_col, board):
+        # Проверка на выход из под шаха
+        for row in range(BOARD_SIZE):
+            for col in range(BOARD_SIZE):
+                piece = board[row][col]
+                if piece == 5 or piece == 11:  # Индексы королей
+                    is_check = self.is_check(row, col, board)  # шах до хода
+                    # print("IS CHECK BEF MPVE" + str(is_check))
+                    if is_check:
+                        cloned_board = copy.deepcopy(board)
+                        piece = cloned_board[start_row][start_col]
+                        cloned_board[start_row][start_col] = None
+                        cloned_board[end_row][end_col] = piece
+
+                        for row_h in range(BOARD_SIZE):
+                            for col_h in range(BOARD_SIZE):
+                                piece = cloned_board[row_h][col_h]
+                                if piece == 5 or piece == 11:  # Индексы королей
+                                    is_check_after = self.is_check(row_h, col_h, cloned_board)  # шах после хода
+                                    # print("IS CHECK AFTER MPVE " + str(is_check_after))
+                                    if is_check_after:
+                                        return False
+        return True
 
     def is_valid_move(self, piece_type, start_row, start_col, end_row, end_col, board):
         # Проверка выхода за границы
@@ -175,7 +218,63 @@ class MovesValidator:
                self.is_valid_bishop_move(piece_type, start_row, start_col, end_row, end_col, board)
 
     def is_valid_king_move(self, piece_type, start_row, start_col, end_row, end_col, board):
-        # if self.is_check(end_row, end_col, board):
-        #     return False
-        # Простейшая проверка хода короля (без рокировки)
-        return max(abs(start_row - end_row), abs(start_col - end_col)) == 1
+        # Если это обычный ход короля
+        if max(abs(start_row - end_row), abs(start_col - end_col)) == 1:
+            opposite_king = 11 if piece_type == 5 else 5
+            for dr in (-1, 0, 1):
+                for dc in (-1, 0, 1):
+                    if dr == 0 and dc == 0:
+                        continue
+                    if not (0 <= start_row + dr < BOARD_SIZE and 0 <= start_col + dc < BOARD_SIZE):
+                        continue
+                    elif board[start_row + dr][start_col + dc] == opposite_king:
+                        return False
+
+            return True
+        # Проверка на рокировку
+        elif self.is_valid_castling_move(piece_type, start_row, start_col, end_row, end_col, board):
+            self.perform_castling(start_row, start_col, 0 if end_col < start_col else 7, board)
+            return True
+
+        return False
+
+    def is_valid_castling_move(self, piece_type, start_row, start_col, end_row, end_col, board):
+        # Только король может участвовать в рокировке
+        if piece_type not in [5, 11]:
+            return False
+
+        # Проверяем, что король на той же строке и остается в пределах колонок для рокировки
+        if start_row != end_row or abs(start_col - end_col) != 2:
+            return False
+
+        # Проверяем, не находится ли король под шахом
+        if self.is_check(start_row, start_col, board):
+            return False
+
+        # Определяем сторону рокировки и соответствующие ладьи
+        rook_col = 0 if end_col < start_col else 7
+        king_side = rook_col == 7
+        direction = 1 if king_side else -1
+
+        # Проверяем, что между королем и ладьей нет фигур
+        for col in range(min(start_col, rook_col) + 1, max(start_col, rook_col)):
+            if board[start_row][col] is not None:
+                return False
+
+        # Проверяем, что клетки, через которые проходит король, не под атакой
+        for col in range(start_col, end_col + direction, direction):
+            if self.is_under_attack(start_row, col, "black" if piece_type == 11 else "white", board):
+                return False
+
+        return True
+
+    def perform_castling(self, start_row, start_col, rook_col, board):
+        # Обновляем позицию короля
+        new_king_col = 6 if rook_col == 7 else 2
+        board[start_row][new_king_col] = board[start_row][start_col]
+        board[start_row][start_col] = None
+
+        # Обновляем позицию ладьи
+        new_rook_col = 5 if rook_col == 7 else 3
+        board[start_row][new_rook_col] = board[start_row][rook_col]
+        board[start_row][rook_col] = None
