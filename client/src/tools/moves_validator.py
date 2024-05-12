@@ -5,13 +5,25 @@ BOARD_SIZE = 8
 
 class MovesValidator:
     def __init__(self):
+
         self.exist = True
+
+    def get_kings_pos(self, board):
+        kings_pos = []
+        for row in range(BOARD_SIZE):
+            for col in range(BOARD_SIZE):
+                piece = board[row][col]
+                if piece is not None:
+                    if piece == 5 or piece == 11:
+                        kings_pos.append((row, col))
+        return kings_pos
 
     def get_all_possible_moves(self, player_color, board):
         all_moves = []
         for row in range(BOARD_SIZE):
             for col in range(BOARD_SIZE):
                 piece = board[row][col]
+                # k_pos = self.get_kings_pos(board)
                 if piece is not None:
                     if (player_color == "white" and 6 <= piece < 12) or (player_color == "black" and 0 <= piece < 6):
                         # Проверяем каждую клетку доски на возможность хода для фигуры
@@ -19,22 +31,38 @@ class MovesValidator:
                             for end_col in range(BOARD_SIZE):
 
                                 if piece == 5 or piece == 11:  # Индексы королей
+                                    if self.is_valid_move(piece, row, col, end_row, end_col, board):
+                                        cloned_board = copy.deepcopy(board)
+                                        piece = cloned_board[row][col]
+                                        cloned_board[row][col] = None
+                                        cloned_board[end_row][end_col] = piece
+
+                                        is_check = self.is_check(end_row, end_col, cloned_board)
+                                        if not is_check:
+                                            all_moves.append(((row, col), (end_row, end_col)))
+
+                                elif self.is_valid_move(piece, row, col, end_row, end_col, board):
 
                                     cloned_board = copy.deepcopy(board)
                                     piece = cloned_board[row][col]
                                     cloned_board[row][col] = None
                                     cloned_board[end_row][end_col] = piece
 
-                                    is_check = self.is_check(row, col, cloned_board)
+                                    k_pos = self.get_kings_pos(board)
 
-                                    if self.is_valid_move(piece, row, col, end_row, end_col, cloned_board) \
-                                            and self.is_valid_move_in_check(row, col, end_row, end_col, cloned_board)\
-                                            and not is_check:
+                                    is_check_1 = self.is_check(k_pos[0][0], k_pos[0][1], cloned_board)
+                                    piece_1 = board[k_pos[0][0]][k_pos[0][1]]
+                                    is_check_2 = self.is_check(k_pos[1][0], k_pos[1][1], cloned_board)
+                                    piece_2 = board[k_pos[1][0]][k_pos[1][1]]
+
+                                    if piece_1 == 5 and player_color == "black" and not is_check_1:
                                         all_moves.append(((row, col), (end_row, end_col)))
-
-                                elif self.is_valid_move(piece, row, col, end_row, end_col, board) \
-                                        and self.is_valid_move_in_check(row, col, end_row, end_col, board):
-                                    all_moves.append(((row, col), (end_row, end_col)))
+                                    elif piece_1 == 11 and player_color == "white" and not is_check_1:
+                                        all_moves.append(((row, col), (end_row, end_col)))
+                                    elif piece_2 == 5 and player_color == "black" and not is_check_2:
+                                        all_moves.append(((row, col), (end_row, end_col)))
+                                    elif piece_2 == 11 and player_color == "white" and not is_check_2:
+                                        all_moves.append(((row, col), (end_row, end_col)))
         return all_moves
 
     def is_under_attack(self, row, col, attacking_color, board):
@@ -112,6 +140,22 @@ class MovesValidator:
 
         return True  # Мат - если не вышел сам и не закрыли фигуры
 
+    def is_stalemate(self, player_color, board):
+        all_moves = self.get_all_possible_moves(player_color, board)
+        if not all_moves:  # Если нет доступных ходов
+            king_row, king_col = self.get_king_pos(player_color, board)  # Получаем позицию короля
+            if not self.is_check(king_row, king_col, board):  # Если король не находится под шахом
+                return True  # Это пат
+        return False
+
+    def get_king_pos(self, player_color, board):
+        for row in range(BOARD_SIZE):
+            for col in range(BOARD_SIZE):
+                piece = board[row][col]
+                if player_color == "white" and piece == 11 or player_color == "black" and piece == 5:
+                    return row, col
+        return None, None
+
     def is_valid_move_in_check(self, start_row, start_col, end_row, end_col, board):
         # Проверка на выход из под шаха
         for row in range(BOARD_SIZE):
@@ -145,6 +189,20 @@ class MovesValidator:
         if piece_type is not None and board[end_row][end_col] is not None:
             if (board[end_row][end_col] < 6 and piece_type < 6) or (board[end_row][end_col] >= 6 and piece_type >= 6):
                 return False
+
+        # for row_c in range(BOARD_SIZE):
+        #     for col_c in range(BOARD_SIZE):
+        #         piece = board[row_c][col_c]
+        #         if piece is not None:
+        #             if piece == 5 or piece == 11:  # Индексы королей
+        #
+        #                 cloned_board = copy.deepcopy(board)
+        #                 piece_other = cloned_board[start_row][start_col]
+        #                 cloned_board[start_row][start_col] = None
+        #                 cloned_board[end_row][end_col] = piece_other
+        #
+        #                 if self.is_check(row_c, col_c, cloned_board):
+        #                     return False
 
         # Для каждой фигуры свой метод
         if piece_type == 0 or piece_type == 6:  # Пешка
@@ -218,6 +276,7 @@ class MovesValidator:
                self.is_valid_bishop_move(piece_type, start_row, start_col, end_row, end_col, board)
 
     def is_valid_king_move(self, piece_type, start_row, start_col, end_row, end_col, board):
+
         # Если это обычный ход короля
         if max(abs(start_row - end_row), abs(start_col - end_col)) == 1:
             opposite_king = 11 if piece_type == 5 else 5
@@ -225,9 +284,9 @@ class MovesValidator:
                 for dc in (-1, 0, 1):
                     if dr == 0 and dc == 0:
                         continue
-                    if not (0 <= start_row + dr < BOARD_SIZE and 0 <= start_col + dc < BOARD_SIZE):
+                    if not (0 <= end_row + dr < BOARD_SIZE and 0 <= end_col + dc < BOARD_SIZE):
                         continue
-                    elif board[start_row + dr][start_col + dc] == opposite_king:
+                    elif board[end_row + dr][end_col + dc] == opposite_king:
                         return False
 
             return True
@@ -239,6 +298,8 @@ class MovesValidator:
         return False
 
     def is_valid_castling_move(self, piece_type, start_row, start_col, end_row, end_col, board):
+        if start_row != end_row or (start_row != 0 or start_row != 7) or (end_row != 0 or end_row != 7):
+            return False
         # Только король может участвовать в рокировке
         if piece_type not in [5, 11]:
             return False

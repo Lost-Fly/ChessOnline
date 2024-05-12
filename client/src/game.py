@@ -135,8 +135,11 @@ class ChessGame:
                 self.selected_piece = None
                 self.message = None
             else:
-                if self.moves_validator.is_valid_move(piece, start_row, start_col, row, col, self.board) \
-                        and self.moves_validator.is_valid_move_in_check(start_row, start_col, row, col, self.board):
+                # if self.moves_validator.is_valid_move(piece, start_row, start_col, row, col, self.board) \
+                #         and self.moves_validator.is_valid_move_in_check(start_row, start_col, row, col, self.board):
+
+                all_mvs = self.moves_validator.get_all_possible_moves(self.current_player, self.board)
+                if all_mvs.count(((start_row, start_col), (row, col))) > 0:
                     self.make_move(self.selected_piece, (row, col))
                     if self.online_mode:
                         self.client.send_move((self.selected_piece, (row, col)))
@@ -154,6 +157,7 @@ class ChessGame:
                 pygame.display.flip()
 
     def make_move(self, start_pos, end_pos):
+
         # print("Make Move - " + str(start_pos) + ", " + str(end_pos))
         row_start, col_start = start_pos
         row_end, col_end = end_pos
@@ -171,7 +175,8 @@ class ChessGame:
             message_box_height = text_height + 10
             message_box_surface = pygame.Surface((message_box_width, message_box_height))
             message_box_surface.fill(WHITE)
-            pygame.draw.rect(message_box_surface, RED, (0, 0, message_box_width, message_box_height), 2)
+            pygame.draw.rect(message_box_surface, RED, (0, 0,
+                                                        message_box_width, message_box_height), 2)
             message_box_surface.blit(text_surface, (10, 5))
             self.screen.blit(message_box_surface, (180, 200))
 
@@ -187,8 +192,10 @@ class ChessGame:
             button_black = button_font.render(PLAY_FOR_BLACK, True, WHITE, BLACK)
 
             title_rect = title.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 4))
-            button_white_rect = button_white.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 - 50))
-            button_black_rect = button_black.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 50))
+            button_white_rect = button_white. \
+                get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 - 50))
+            button_black_rect = button_black. \
+                get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 50))
 
             self.screen.blit(title, title_rect)
             self.screen.blit(button_white, button_white_rect)
@@ -244,14 +251,18 @@ class ChessGame:
 
             title_rect = title.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 4))
 
-            button_no_bot_rect = button_no_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 - 100))
-            button_two_bot_rect = button_two_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 100))
-            button_simple_bot_rect = button_simple_bot.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2))
+            button_no_bot_rect = button_no_bot. \
+                get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 - 100))
+            button_two_bot_rect = button_two_bot. \
+                get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 100))
+            button_simple_bot_rect = button_simple_bot. \
+                get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2))
             button_advanced_bot_rect = button_advanced_bot.get_rect(
                 center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 50))
 
             button_online = button_font.render("Игра через сеть", True, BLACK, WHITE)
-            button_online_rect = button_online.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 150))
+            button_online_rect = button_online. \
+                get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 150))
             self.screen.blit(button_online, button_online_rect)
 
             self.screen.blit(title, title_rect)
@@ -303,15 +314,18 @@ class ChessGame:
             self.message = f"МАТ! {self.other_player_color.capitalize()} wins!"
 
     def show_current_player(self):
-        text_surface = self.font.render(f"Current Player: {self.current_player.capitalize()}", True, BLACK)
+        text_surface = self.font.render(f"Current Player: "
+                                        f"{self.current_player.capitalize()}", True, BLACK)
         text_width, text_height = text_surface.get_size()
         message_box_width = text_width + 60
         message_box_height = text_height + 10
         message_box_surface = pygame.Surface((message_box_width, message_box_height))
         message_box_surface.fill(WHITE)
-        pygame.draw.rect(message_box_surface, RED, (0, 0, message_box_width, message_box_height), 2)
+        pygame.draw.rect(message_box_surface, RED, (0, 0,
+                                                    message_box_width, message_box_height), 2)
         message_box_surface.blit(text_surface, (10, 5))
-        self.screen.blit(message_box_surface, ((WINDOW_SIZE[0] - message_box_width), WINDOW_SIZE[1] - 50))
+        self.screen.blit(message_box_surface, ((WINDOW_SIZE[0] - message_box_width),
+                                               WINDOW_SIZE[1] - 50))
 
         elapsed_time = (pygame.time.get_ticks() - self.last_move_time) // 1000
         timer_text = f"Time since last move: {elapsed_time}s"
@@ -340,28 +354,36 @@ class ChessGame:
                             self.game_over = True
                             winner = "White" if self.current_player == "black" else "Black"
                             self.message = f"МАТ! {winner} wins!"
+                    else:
+                        # Проверяем на ПАТ
+                        is_stalemate = self.moves_validator.is_stalemate(self.current_player, self.board)
+                        if is_stalemate:
+                            self.game_over = True
+                            self.message = f"STALEMATE! It's a draw!"
 
     def draw_labels(self):
         label_font = pygame.font.Font(None, FONT_SIZE // 2)
         label_offset = CELL_SIZE // 2
         for row in range(BOARD_SIZE):
             # Отображаем цифры для строк
-            label = label_font.render(str(8 - row), True, WHITE )
-            label_rect = label.get_rect(midright=(WINDOW_SIZE[0] - label_offset * 2, row * CELL_SIZE + label_offset))
+            label = label_font.render(str(8 - row), True, WHITE)
+            label_rect = \
+                label.get_rect(midright=(WINDOW_SIZE[0] - label_offset * 2,
+                                         row * CELL_SIZE + label_offset))
             self.screen.blit(label, label_rect)
 
         for col in range(BOARD_SIZE):
             # Отображаем буквы для столбцов
-            label = label_font.render(chr(ord('a') + col), True, WHITE )
+            label = label_font.render(chr(ord('a') + col), True, WHITE)
             label_rect = label.get_rect(
-                midtop=(col * CELL_SIZE + label_offset, WINDOW_SIZE[1] - WINDOW_BORDER + label_offset // 2))
+                midtop=(col * CELL_SIZE + label_offset,
+                        WINDOW_SIZE[1] - WINDOW_BORDER + label_offset // 2))
             self.screen.blit(label, label_rect)
-
-
 
     def highlight_check_or_checkmate(self, row, col, is_checkmate):
         color = RED if is_checkmate else ORANGE
-        highlight_rect = pygame.Rect(col * CELL_SIZE - 5, row * CELL_SIZE - 5, CELL_SIZE + 10, CELL_SIZE + 10)
+        highlight_rect = pygame.Rect(col * CELL_SIZE - 5,
+                                     row * CELL_SIZE - 5, CELL_SIZE + 10, CELL_SIZE + 10)
         pygame.draw.rect(self.screen, color, highlight_rect, 2)
 
     def online_mode_logic(self):
@@ -391,7 +413,8 @@ class ChessGame:
             self.player_color = color_data
             return color_data
         else:
-            # Если данные не получены или некорректны, возвращаем None или выбрасываем исключение
+            # Если данные не получены или некорректны,
+            # возвращаем None или выбрасываем исключение
             # print("Failed to receive color data.")
             return None
 
@@ -426,7 +449,6 @@ class ChessGame:
 
             self.other_player_color = "black" if self.player_color == "white" else "white"
 
-
             # print("OTHER PL COLOR" + self.other_player_color)
             while True:
                 self.screen.fill(BLACK)
@@ -460,7 +482,8 @@ class ChessGame:
                         if self.bot_mode_difficulty == "simple":
                             self.bot_make_random_move()
                         elif self.bot_mode_difficulty == "advanced":
-                            curr_move = self.advanced_bot.advanced_bot_move(self.current_player, self.board)
+                            curr_move = \
+                                self.advanced_bot.advanced_bot_move(self.current_player, self.board)
                             self.make_move(curr_move[0], curr_move[1])
                         self.current_player = self.player_color
                     elif not self.bot_mode:

@@ -3,7 +3,7 @@ import json
 
 
 class ChessClient:
-    def __init__(self, host='192.168.170.249', port=65432):
+    def __init__(self, host='10.249.26.53', port=65432):
         self.host = host
         self.port = port
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
