@@ -5,7 +5,7 @@ BOARD_SIZE = 8
 
 class MovesValidator:
     def __init__(self):
-
+        self.BOARD_SIZE = BOARD_SIZE
         self.exist = True
 
     def get_kings_pos(self, board):
@@ -181,47 +181,50 @@ class MovesValidator:
         return True
 
     def is_valid_move(self, piece_type, start_row, start_col, end_row, end_col, board):
-        # Проверка выхода за границы
-        if not (0 <= end_row < BOARD_SIZE and 0 <= end_col < BOARD_SIZE):
+
+
+        # Проверка выхода за границы доски
+        if not (0 <= end_row < self.BOARD_SIZE and 0 <= end_col < self.BOARD_SIZE):
             return False
 
-        # Если на месте стоит фигура нашего цвета
-        if piece_type is not None and board[end_row][end_col] is not None:
-            if (board[end_row][end_col] < 6 and piece_type < 6) or (board[end_row][end_col] >= 6 and piece_type >= 6):
-                return False
+        # Создаем клон доски для симуляции хода
+        cloned_board = copy.deepcopy(board)
 
-        # for row_c in range(BOARD_SIZE):
-        #     for col_c in range(BOARD_SIZE):
-        #         piece = board[row_c][col_c]
-        #         if piece is not None:
-        #             if piece == 5 or piece == 11:  # Индексы королей
-        #
-        #                 cloned_board = copy.deepcopy(board)
-        #                 piece_other = cloned_board[start_row][start_col]
-        #                 cloned_board[start_row][start_col] = None
-        #                 cloned_board[end_row][end_col] = piece_other
-        #
-        #                 if self.is_check(row_c, col_c, cloned_board):
-        #                     return False
+        # Симулируем ход на клонированной доске
+        self.simulate_move(cloned_board, (start_row, start_col), (end_row, end_col))
+        king_pos = self.find_king(cloned_board, piece_type)
+
+        # Проверка на шах после хода
+        if self.is_check(king_pos[0], king_pos[1], cloned_board):
+            return False
+
+        # Если на конечной позиции стоит фигура того же цвета
+        target_piece = board[end_row][end_col]
+        if target_piece is not None:
+            if (target_piece < 6 and piece_type < 6) or (target_piece >= 6 and piece_type >= 6):
+                return False
+             return False
 
         # Для каждой фигуры свой метод
+        # Делегирование проверки валидности хода специфичным функциям для каждого типа фигуры
         if piece_type == 0 or piece_type == 6:  # Пешка
-            return self.is_valid_pawn_move(piece_type, start_row, start_col, end_row, end_col, board)
-        elif piece_type == 1 or piece_type == 7:  # Ладья
-            return self.is_valid_rook_move(piece_type, start_row, start_col, end_row, end_col, board)
-        elif piece_type == 2 or piece_type == 8:  # Конь
-            return self.is_valid_knight_move(piece_type, start_row, start_col, end_row, end_col, board)
-        elif piece_type == 3 or piece_type == 9:  # Слон
-            return self.is_valid_bishop_move(piece_type, start_row, start_col, end_row, end_col, board)
-        elif piece_type == 4 or piece_type == 10:  # Ферзь
-            return self.is_valid_queen_move(piece_type, start_row, start_col, end_row, end_col, board)
-        elif piece_type == 5 or piece_type == 11:  # Король
-            return self.is_valid_king_move(piece_type, start_row, start_col, end_row, end_col, board)
+            return self.is_valid_pawn_move(start_row, start_col, end_row, end_col, cloned_board)
+        elif piece_type in (1, 7):  # Ладья
+            return self.is_valid_rook_move(start_row, start_col, end_row, end_col, cloned_board)
+        elif piece_type in (2, 8):  # Конь
+            return self.is_valid_knight_move(start_row, start_col, end_row, end_col, cloned_board)
+        elif piece_type in (3, 9):  # Слон
+            return self.is_valid_bishop_move(start_row, start_col, end_row, end_col, cloned_board)
+        elif piece_type in (4, 10):  # Ферзь
+            return self.is_valid_queen_move(start_row, start_col, end_row, end_col, cloned_board)
+        elif piece_type in (5, 11):  # Король
+            return self.is_valid_king_move(start_row, start_col, end_row, end_col, cloned_board)
         else:
             return False
-
     def is_valid_pawn_move(self, piece_type, start_row, start_col, end_row, end_col, board):
-        direction = 1 if piece_type == 0 else -1  # Определяем направление: вверх для белых, вниз для черных
+        piece_type = board[start_row][start_col]
+        direction = 1 if piece_type < 6 else -1  # Определяем направление: вверх для белых (0-5), вниз для черных (6-11)
+        # direction = 1 if piece_type == 0 else -1  # Определяем направление: вверх для белых, вниз для черных
 
         # Проверка на обычный ход вперед
         if start_col == end_col and board[end_row][end_col] is None:
@@ -339,3 +342,13 @@ class MovesValidator:
         new_rook_col = 5 if rook_col == 7 else 3
         board[start_row][new_rook_col] = board[start_row][rook_col]
         board[start_row][rook_col] = None
+        # if self.is_check(end_row, end_col, board):
+        #     return False
+        # Простейшая проверка хода короля (без рокировки)
+        return max(abs(start_row - end_row), abs(start_col - end_col)) == 1
+
+    def simulate_move(self, board, start_pos, end_pos):
+        piece = board[start_pos[0]][start_pos[1]]
+        board[start_pos[0]][start_pos[1]] = None
+        board[end_pos[0]][end_pos[1]] = piece
+
