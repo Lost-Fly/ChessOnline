@@ -1,11 +1,10 @@
 import socket
 import threading
-import json
 import time
 
 
 class ChessServer:
-    def __init__(self, host='192.168.170.249', port=65432):
+    def __init__(self, host='10.249.26.53', port=65432):
         self.host = host
         self.port = port
         self.clients = []

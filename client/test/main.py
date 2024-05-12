@@ -15,11 +15,13 @@ class TestMovesValidator(unittest.TestCase):
         start_position = (6, 0)  # Обычный первый ход пешки
         end_position = (4, 0)
         piece_type = 6  # White
-        self.assertTrue(self.validator.is_valid_pawn_move(piece_type, *start_position, *end_position, self.board))
+        self.assertTrue(self.validator.
+                        is_valid_pawn_move(piece_type, *start_position, *end_position, self.board))
 
         # Тестирование заблокированной пешки
         self.board[5][0] = 0
-        self.assertFalse(self.validator.is_valid_pawn_move(piece_type, *start_position, *end_position, self.board))
+        self.assertFalse(self.validator.
+                         is_valid_pawn_move(piece_type, *start_position, *end_position, self.board))
 
         # TODO рассмотреть другие ситуации ходов
 
@@ -32,8 +34,8 @@ class TestMovesValidator(unittest.TestCase):
         for end_position in correct_moves:
             with self.subTest(end_position=end_position):
                 self.assertTrue(
-                    self.validator.is_valid_knight_move(piece_type, *start_position, *end_position, self.board))
-
+                    self.validator.
+                    is_valid_knight_move(piece_type, *start_position, *end_position, self.board))
 
     # TODO методы для других фигур
     # - test_is_valid_bishop_move
@@ -59,11 +61,14 @@ class TestChessGame(unittest.TestCase):
         # Тестируем, правильно ли отрабатывает make_move
         start_pos = (6, 0)
         end_pos = (4, 0)
-        self.assertIsNone(self.game.board[4][0], "Должно быть пусто, перед тем как пешка переместится.")
+        self.assertIsNone(self.game.board[4][0],
+                          "Должно быть пусто, перед тем как пешка переместится.")
 
         self.game.make_move(start_pos, end_pos)
-        self.assertEqual(self.game.board[4][0], 6, "Пешка должна переместиться на позицию (4, 0).")
-        self.assertIsNone(self.game.board[6][0], "Позиция начального хода пешки должна быть пуста после хода.")
+        self.assertEqual(self.game.board[4][0], 6,
+                         "Пешка должна переместиться на позицию (4, 0).")
+        self.assertIsNone(self.game.board[6][0],
+                          "Позиция начального хода пешки должна быть пуста после хода.")
 
     def test_game_over(self):
         pass
